@@ -41,6 +41,11 @@ class AI(RealtimeAI):
         foo = [EDirection.Up, EDirection.Right, EDirection.Down, EDirection.Left]
         return foo[curDir]
 
+    def distanceFromOpp(self, x, y):
+        oppX = self.world.agents[self.other_side].position.x
+        oppY = self.world.agents[self.other_side].position.y
+        return abs(x - oppX) + abs(y - oppY)
+
     def isValidPos(self, x, y):
         return self.m > x >= 0 and self.n > y >= 0
 
@@ -55,6 +60,14 @@ class AI(RealtimeAI):
             return self.world.board[y][x] == ECell.BlueWall or self.getOppPos() == [x, y]
         else:
             return self.world.board[y][x] == ECell.YellowWall or self.getOppPos() == [x, y]
+
+    def agentsPotentialCollision(self, curX, curY, curDir):
+        myNextX = curX + self.xDir[curDir]
+        myNextY = curY + self.yDir[curDir]
+        oppLastDir = self.convertDirToInd(self.world.agents[self.other_side].direction)
+        oppNextX = self.world.agents[self.other_side].position.x + self.xDir[oppLastDir]
+        oppNextY = self.world.agents[self.other_side].position.y + self.yDir[oppLastDir]
+        return myNextX == oppNextX and myNextY == oppNextY
     
     def numberOfEmptyNeighbors(self, x, y):
         ans = 0
@@ -201,8 +214,11 @@ class AI(RealtimeAI):
         queue = deque([[x, y, -1]]) #Third number indicates that what was first direction made in the beginning
         mark = [[-1] * self.m for i in range(self.n)]
         mark[y][x] = 0
+        
         #print("queue:")
         #print(queue)
+
+        #We use alternative when we can not 
         alternative = -1
         alternativeFlg = False
         while len(queue) > 0:
@@ -212,9 +228,9 @@ class AI(RealtimeAI):
                 newX = left[0] + self.xDir[i]
                 newY = left[1] + self.yDir[i]
 
-                #Debug
+                """Debug
                 if originX == 25 and originY == 2:
-                    print("Debug", newX, newY, self.isEnemyWall(newX, newY), self.checkEscape(newX, newY, mark), mark[newY][newX], left[2])
+                    print("Debug", newX, newY, self.isEnemyWall(newX, newY), self.checkEscape(newX, newY, mark), mark[newY][newX], left[2])"""
 
                 if self.isEmpty(newX, newY) and mark[newY][newX] == -1:
                     firstDir = left[2]
@@ -226,7 +242,7 @@ class AI(RealtimeAI):
                 elif self.isEnemyWall(newX, newY) and self.checkEscape(newX, newY, mark, rem) and mark[newY][newX] == -1:
                     if left[2] != -1:
                         return left[2]
-                    else: #First time we make a direction
+                    else: #First time we make a direction (destination enemy wall is one of neighbor cells)
                         self.send_command(ActivateWallBreaker())
                         self.attackState = True
                         return i
@@ -256,20 +272,26 @@ class AI(RealtimeAI):
             self.attackState = False
             print("1st if")
             decision = self.mostOpenDecision(curX, curY)
-        elif self.attackState and self.world.agents[self.my_side].wall_breaker_rem_time != 0:
+        elif self.attackState and self.world.agents[self.my_side].wall_breaker_rem_time > 1:
             print("2nd if")
             decision = self.prepareAttackDecision(curX, curY, self.world.agents[self.my_side].wall_breaker_rem_time)
         elif not self.attackState and self.world.agents[self.my_side].wall_breaker_cooldown == 0:
             print("first if")
             decision = self.prepareAttackDecision(curX, curY)
+            #What if there was not any opponent neighbor wall reachable from current cell?
         elif not self.attackState and self.world.agents[self.my_side].wall_breaker_cooldown != 0:
             print("second if")
             decision = self.mostOpenDecision(curX, curY)
+            #What if there was not any empty neighbors in this case?
 
         if decision == -1:
             print("third if")
             decision = self.mostOpenDecision(curX, curY)
-            
+            #What is this case use for exactly???
+
+        if self.agentsPotentialCollision(curX, curY, curDir) and self.world.scores[self.my_side] <= self.world.scores[self.other_side]:
+            print("fourth if")
+            decision = self.mostOpenDecision(curX, curY)
         
         print("decision:", decision)
         
