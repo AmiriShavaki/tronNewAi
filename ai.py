@@ -12,6 +12,7 @@ from ks.commands import ChangeDirection, ActivateWallBreaker
 
 from collections import deque
 from copy import deepcopy
+from time import time
 
 class AI(RealtimeAI):
 
@@ -60,6 +61,12 @@ class AI(RealtimeAI):
             return self.world.board[y][x] == ECell.BlueWall or self.getOppPos() == [x, y]
         else:
             return self.world.board[y][x] == ECell.YellowWall or self.getOppPos() == [x, y]
+
+    def isMyWall(self, x, y):
+        if self.my_side == "Blue":
+            return self.world.board[y][x] == ECell.BlueWall
+        else:
+            return self.world.board[y][x] == ECell.YellowWall
 
     def agentsPotentialCollision(self, curX, curY, curDir):
         myNextX = curX + self.xDir[curDir]
@@ -111,7 +118,81 @@ class AI(RealtimeAI):
             if self.isValidPos(newX, newY) and self.world.board[newY][newX] != ECell.AreaWall:
                 ans.append(i)
         return ans
-                
+
+    def areaWallNeighbor(self, x, y, curDir): #Return one of area walls neighboring or return -1 if there wasn't
+        ans = []
+        xDir = [0, 1, 0, -1]
+        yDir = [-1, 0, 1, 0]
+        for i in range(4):
+            newX = x + self.xDir[i]
+            newY = y + self.yDir[i]
+            if self.world.board[newY][newX] == ECell.AreaWall and i != self.opposite(curDir):
+                return i
+        return -1
+
+    def myWallNeighbor(self, x, y, curDir): #Return one of my walls neighboring or return -1 if there wasn't
+        ans = []
+        xDir = [0, 1, 0, -1]
+        yDir = [-1, 0, 1, 0]
+        for i in range(4):
+            newX = x + self.xDir[i]
+            newY = y + self.yDir[i]
+            if self.isMyWall(newX, newY) and i != self.opposite(curDir):
+                return i
+        return -1
+
+    def opponentWallNeighbor(self, x, y, curDir): #Return one of opponent walls neighboring or return -1 if there wasn't
+        ans = []
+        xDir = [0, 1, 0, -1]
+        yDir = [-1, 0, 1, 0]
+        for i in range(4):
+            newX = x + self.xDir[i]
+            newY = y + self.yDir[i]
+            if self.isEnemyWall(newX, newY) and i != self.opposite(curDir):
+                return i
+        return -1
+
+    def bestSuicideMove(self, x, y, curDir):
+        AWCS = -self.world.constants.area_wall_crash_score
+        MWCS = -self.world.constants.my_wall_crash_score
+        EWCS = -self.world.constants.enemy_wall_crash_score
+        if AWCS <= MWCS <= EWCS:
+            if self.areaWallNeighbor(x, y) != -1:
+                return self.areaWallNeighbor(x, y)
+            if self.myWallNeighbor(x, y) != -1:
+                return self.myWallNeighbor(x, y)
+            return self.opponentWallNeighbor(x, y)
+        if AWCS <= EWCS <= MWCS:
+            if self.areaWallNeighbor(x, y) != -1:
+                return self.areaWallNeighbor(x, y)
+            if self.opponentWallNeighbor(x, y) != -1:
+                return self.opponentWallNeighbor(x, y)
+            return self.myWallNeighbor(x, y)
+        if MWCS <= AWCS <= EWCS:
+            if self.myWallNeighbor(x, y) != -1:
+                return self.myWallNeighbor(x, y)
+            if self.areaWallNeighbor(x, y) != -1:
+                return self.areaWallNeighbor(x, y)
+            return self.opponentWallNeighbor(x, y)
+        if MWCS <= EWCS <= AWCS:
+            if self.myWallNeighbor(x, y) != -1:
+                return self.myWallNeighbor(x, y)
+            if self.opponentWallNeighbor(x, y) != -1:
+                return self.opponentWallNeighbor(x, y)
+            return self.areaWallNeighbor(x, y)
+        if EWCS <= MWCS <= AWCS:
+            if self.opponentWallNeighbor(x, y) != -1:
+                return self.opponentWallNeighbor(x, y)
+            if self.myWallNeighbor(x, y) != -1:
+                return self.myWallNeighbor(x, y)
+            return self.areaWallNeighbor(x, y)
+        if EWCS <= AWCS <= MWCS:
+            if self.opponentWallNeighbor(x, y) != -1:
+                return self.opponentWallNeighbor(x, y)
+            if self.areaWallNeighbor(x, y) != -1:
+                return self.areaWallNeighbor(x, y)
+            return self.myWallNeighbor(x, y)
+ 
     def opposite(self, curDir):
         #Up0 Right1 Down2 Left3
         if curDir == 0:
@@ -144,6 +225,31 @@ class AI(RealtimeAI):
         print("Reachable space from [", x, y, "] is: ", ans)
         return ans
 
+    def reachableHeight(self, x, y, curDir): #Return maximum height in the BFS tree
+        originX = x
+        originY = y
+        x += self.xDir[curDir]
+        y += self.yDir[curDir]
+        queue = deque([[x, y, 1]]) #Third number is height
+        mark = [[-1] * self.m for i in range(self.n)]
+        mark[y][x] = 0
+        ans = 0
+        while len(queue) > 0:
+            left = queue.popleft()
+
+            if ans < left[2]:
+                ans = left[2]
+            
+            for i in self.emptyNeighbors(left[0], left[1]):
+                newX = left[0] + self.xDir[i]
+                newY = left[1] + self.yDir[i]
+                if mark[newY][newX] == -1 and (newX != originX or newY != originY):
+                    queue.append([newX, newY, left[2] + 1])
+                    mark[newY][newX] = 1
+                    
+        print("Reachable Height from [", x, y, "] is: ", ans)
+        return ans
+        
     def reachableEmptyWB(self, x, y, curDir): #Return escape path length (It is just a useless trash function)
         originX = x
         originY = y
@@ -170,7 +276,9 @@ class AI(RealtimeAI):
         moves = []
 
         optionsList = self.emptyNeighbors(x, y)
-        random.shuffle(optionsList)
+
+        if self.current_cycle <= 26:
+            random.shuffle(optionsList)
         
         for i in optionsList:
             res = self.reachableSpace(x, y, i)
@@ -206,7 +314,7 @@ class AI(RealtimeAI):
                 newX = left[0] + self.xDir[i]
                 newY = left[1] + self.yDir[i]
 
-                if self.isEmpty(newX, newY) and left[2] <= maxWallBreaker and mark[newY][newX] == -1 and self.reachableSpace(left[0], left[1], i) >= self.world.constants.wall_breaker_cooldown:
+                if self.isEmpty(newX, newY) and left[2] <= maxWallBreaker and mark[newY][newX] == -1 and self.reachableHeight(left[0], left[1], i) >= self.world.constants.wall_breaker_cooldown:
                     print("maxWB", maxWallBreaker, "left2", left[2], "x", x, "y", y)
                     return True
 
@@ -234,7 +342,10 @@ class AI(RealtimeAI):
             left = queue.popleft()
 
             optionsList = self.notAreaWallNeighbors(left[0], left[1])
-            random.shuffle(optionsList)
+            
+            if self.current_cycle <= 26: 
+                random.shuffle(optionsList)
+                
             for i in optionsList:
                 if left[2] == -1 and i == self.opposite(curDir): #We can not break last created of our walls
                     continue
@@ -279,12 +390,26 @@ class AI(RealtimeAI):
             return -1
 
     def decide(self):
+        t = time()
         print('decide', self.current_cycle, self.my_side)
         #every cycle
         #500ms
         curX = self.world.agents[self.my_side].position.x
         curY = self.world.agents[self.my_side].position.y
         curDir = self.convertDirToInd(self.world.agents[self.my_side].direction) #Dir index stored
+        
+        if self.world.scores[self.my_side] - self.world.scores[self.other_side] - 2 > -self.world.constants.area_wall_crash_score:
+            if self.areaWallNeighbor(curX, curY, curDir) != -1:
+                print("Suicide first if myScore", self.world.scores[self.my_side], "opponentScore", self.world.scores[self.other_side], "AWC", self.world.constants.area_wall_crash_score)
+                self.send_command(ChangeDirection(self.convertIndToDir(self.areaWallNeighbor(curX, curY, curDir)))) #Suicide to win :D
+                return  
+
+        #When we have to suicide it's better to pay least possible cost
+        if len(self.emptyNeighbors(curX, curY)) == 0 and self.world.agents[self.my_side].health == 1 and self.world.agents[self.my_side].wall_breaker_cooldown != 0:
+            print("Suicide second if")
+            self.send_command(ChangeDirection(self.convertIndToDir(self.bestSuicideMove(curX, curY, curDir))))
+            return
+        
         decision = -1 #Not made yet
         if self.attackState and self.world.agents[self.my_side].wall_breaker_rem_time == 1:
             self.attackState = False
@@ -313,3 +438,5 @@ class AI(RealtimeAI):
         print("decision:", decision)
         
         self.send_command(ChangeDirection(self.convertIndToDir(decision)))
+
+        print("Elapsed time", time() - t)
