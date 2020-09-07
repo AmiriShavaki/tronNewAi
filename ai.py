@@ -67,6 +67,7 @@ class AI(RealtimeAI):
         oppLastDir = self.convertDirToInd(self.world.agents[self.other_side].direction)
         oppNextX = self.world.agents[self.other_side].position.x + self.xDir[oppLastDir]
         oppNextY = self.world.agents[self.other_side].position.y + self.yDir[oppLastDir]
+        print("tie preventer decision", curDir, "oppLastDir", oppLastDir, "coordinates:", myNextX, oppNextX, myNextY, oppNextY)
         return myNextX == oppNextX and myNextY == oppNextY
     
     def numberOfEmptyNeighbors(self, x, y):
@@ -167,7 +168,11 @@ class AI(RealtimeAI):
     def mostOpenDecision(self, x, y):
         ma = -1
         moves = []
-        for i in self.emptyNeighbors(x, y):
+
+        optionsList = self.emptyNeighbors(x, y)
+        random.shuffle(optionsList)
+        
+        for i in optionsList:
             res = self.reachableSpace(x, y, i)
             if res > ma:
                 ma = res
@@ -202,6 +207,7 @@ class AI(RealtimeAI):
                 newY = left[1] + self.yDir[i]
 
                 if self.isEmpty(newX, newY) and left[2] <= maxWallBreaker and mark[newY][newX] == -1 and self.reachableSpace(left[0], left[1], i) >= self.world.constants.wall_breaker_cooldown:
+                    print("maxWB", maxWallBreaker, "left2", left[2], "x", x, "y", y)
                     return True
 
                 if not self.isEmpty(newX, newY) and left[2] + 1 <= maxWallBreaker and mark[newY][newX] == -1:
@@ -218,13 +224,21 @@ class AI(RealtimeAI):
         #print("queue:")
         #print(queue)
 
-        #We use alternative when we can not 
+        curDir = self.convertDirToInd(self.world.agents[self.my_side].direction) #Dir index stored
+
+        #We use alternative when we can not find any escapable opponent wall
         alternative = -1
         alternativeFlg = False
         while len(queue) > 0:
             #print("len queue:", len(queue))
-            left = queue.popleft()            
-            for i in self.notAreaWallNeighbors(left[0], left[1]):
+            left = queue.popleft()
+
+            optionsList = self.notAreaWallNeighbors(left[0], left[1])
+            random.shuffle(optionsList)
+            for i in optionsList:
+                if left[2] == -1 and i == self.opposite(curDir): #We can not break last created of our walls
+                    continue
+                
                 newX = left[0] + self.xDir[i]
                 newY = left[1] + self.yDir[i]
 
@@ -244,17 +258,21 @@ class AI(RealtimeAI):
                         return left[2]
                     else: #First time we make a direction (destination enemy wall is one of neighbor cells)
                         self.send_command(ActivateWallBreaker())
+                        print("WALLLLBBBBBBBBBBBBBBBBBBBBBBBRRRRRRRR1111111111111")
                         self.attackState = True
                         return i
 
                 elif not self.isEmpty(newX, newY) and self.checkEscape(newX, newY, mark, rem) and mark[newY][newX] == -1:
                     if left[2] != -1:
-                        alternative = left[2]
+                        if alternative == -1: #This condition assure us we chose first good wall we seen
+                            alternative = left[2]
                     else: #First time we make a direction
                         alternativeFlg = True
                         alternative = i
+                        print("alternative Onnnnn", alternative)
         if alternativeFlg:
             self.send_command(ActivateWallBreaker())
+            print("WALLLLBBBBBBBBBBBBBBBBBBBBBBBRRRRRRRR2222222222222")
             self.attackState = True
             return alternative
         else:
@@ -287,9 +305,8 @@ class AI(RealtimeAI):
         if decision == -1:
             print("third if")
             decision = self.mostOpenDecision(curX, curY)
-            #What is this case use for exactly???
-
-        if self.agentsPotentialCollision(curX, curY, curDir) and self.world.scores[self.my_side] <= self.world.scores[self.other_side]:
+            #What is this case use for exactly??? turn 0 and ...?
+        if self.agentsPotentialCollision(curX, curY, decision) and self.world.scores[self.my_side] <= self.world.scores[self.other_side]:
             print("fourth if")
             decision = self.mostOpenDecision(curX, curY)
         
