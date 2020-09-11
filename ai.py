@@ -157,41 +157,41 @@ class AI(RealtimeAI):
         MWCS = -self.world.constants.my_wall_crash_score
         EWCS = -self.world.constants.enemy_wall_crash_score
         if AWCS <= MWCS <= EWCS:
-            if self.areaWallNeighbor(x, y) != -1:
-                return self.areaWallNeighbor(x, y)
-            if self.myWallNeighbor(x, y) != -1:
-                return self.myWallNeighbor(x, y)
-            return self.opponentWallNeighbor(x, y)
+            if self.areaWallNeighbor(x, y, curDir) != -1:
+                return self.areaWallNeighbor(x, y, curDir)
+            if self.myWallNeighbor(x, y, curDir) != -1:
+                return self.myWallNeighbor(x, y, curDir)
+            return self.opponentWallNeighbor(x, y, curDir)
         if AWCS <= EWCS <= MWCS:
-            if self.areaWallNeighbor(x, y) != -1:
-                return self.areaWallNeighbor(x, y)
-            if self.opponentWallNeighbor(x, y) != -1:
-                return self.opponentWallNeighbor(x, y)
-            return self.myWallNeighbor(x, y)
+            if self.areaWallNeighbor(x, y, curDir) != -1:
+                return self.areaWallNeighbor(x, y, curDir)
+            if self.opponentWallNeighbor(x, y, curDir) != -1:
+                return self.opponentWallNeighbor(x, y, curDir)
+            return self.myWallNeighbor(x, y, curDir)
         if MWCS <= AWCS <= EWCS:
-            if self.myWallNeighbor(x, y) != -1:
-                return self.myWallNeighbor(x, y)
-            if self.areaWallNeighbor(x, y) != -1:
-                return self.areaWallNeighbor(x, y)
-            return self.opponentWallNeighbor(x, y)
+            if self.myWallNeighbor(x, y, curDir) != -1:
+                return self.myWallNeighbor(x, y, curDir)
+            if self.areaWallNeighbor(x, y, curDir) != -1:
+                return self.areaWallNeighbor(x, y, curDir)
+            return self.opponentWallNeighbor(x, y, curDir)
         if MWCS <= EWCS <= AWCS:
-            if self.myWallNeighbor(x, y) != -1:
-                return self.myWallNeighbor(x, y)
-            if self.opponentWallNeighbor(x, y) != -1:
-                return self.opponentWallNeighbor(x, y)
-            return self.areaWallNeighbor(x, y)
+            if self.myWallNeighbor(x, y, curDir) != -1:
+                return self.myWallNeighbor(x, y, curDir)
+            if self.opponentWallNeighbor(x, y, curDir) != -1:
+                return self.opponentWallNeighbor(x, y, curDir)
+            return self.areaWallNeighbor(x, y, curDir)
         if EWCS <= MWCS <= AWCS:
-            if self.opponentWallNeighbor(x, y) != -1:
-                return self.opponentWallNeighbor(x, y)
-            if self.myWallNeighbor(x, y) != -1:
-                return self.myWallNeighbor(x, y)
-            return self.areaWallNeighbor(x, y)
+            if self.opponentWallNeighbor(x, y, curDir) != -1:
+                return self.opponentWallNeighbor(x, y, curDir)
+            if self.myWallNeighbor(x, y, curDir) != -1:
+                return self.myWallNeighbor(x, y, curDir)
+            return self.areaWallNeighbor(x, y, curDir)
         if EWCS <= AWCS <= MWCS:
-            if self.opponentWallNeighbor(x, y) != -1:
-                return self.opponentWallNeighbor(x, y)
-            if self.areaWallNeighbor(x, y) != -1:
-                return self.areaWallNeighbor(x, y)
-            return self.myWallNeighbor(x, y)
+            if self.opponentWallNeighbor(x, y, curDir) != -1:
+                return self.opponentWallNeighbor(x, y, curDir)
+            if self.areaWallNeighbor(x, y, curDir) != -1:
+                return self.areaWallNeighbor(x, y, curDir)
+            return self.myWallNeighbor(x, y, curDir)
  
     def opposite(self, curDir):
         #Up0 Right1 Down2 Left3
